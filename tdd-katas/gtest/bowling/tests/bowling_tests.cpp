@@ -11,33 +11,57 @@ using namespace std;
 
 class BowlingGame
 {
+    uint32_t score_ = 0;
 public:
-    void roll(uint32_t)
+    void roll(uint32_t pins)
     {        
+        score_ += pins;
     }
 
     uint32_t score() const
     {
-        return 0;
+        return score_;
     }
 };
 
-TEST(BowlingGameTests, WhenGameStarts_ScoreReturnsZero)
+class BowlingGameTests : public ::testing::Test
 {
+protected:
+    inline static const uint32_t MAX_ROLLS = 20;
+
     BowlingGame game;
+
+    // void SetUp() override
+    // {}
+
+    // void TearDown() override
+    // {}
+
+    void roll_many(uint32_t pins, uint32_t count = MAX_ROLLS)
+    {
+        for(int i = 0; i < count; ++i)
+        {
+            game.roll(pins);
+        }
+
+    }
+};
+
+TEST_F(BowlingGameTests, WhenGameStarts_ScoreReturnsZero)
+{
+    ASSERT_EQ(game.score(), 0);
+}
+
+TEST_F(BowlingGameTests, WhenAllRollsInGutter_ScoreReturnsZero)
+{   
+    roll_many(0, MAX_ROLLS);
 
     ASSERT_EQ(game.score(), 0);
 }
 
-TEST(BowlingGameTests, WhenAllRollsInGutter_ScoreReturnsZero)
+TEST_F(BowlingGameTests, WhenAllRollsWithoutBonus_ScoreIsSumOfRolledPins)
 {
-    BowlingGame game;
-    
-    const int MAX_ROLLS = 20;
-    for(int i = 0; i < MAX_ROLLS; ++i)
-    {
-        game.roll(0);
-    }
+    roll_many(1, MAX_ROLLS);
 
-    ASSERT_EQ(game.score(), 0);
+    ASSERT_EQ(game.score(), 20);
 }
