@@ -15,7 +15,7 @@ class BowlingGame
 {    
     static constexpr uint32_t MAX_PINS_IN_FRAME = 10;
     static constexpr uint32_t MAX_FRAMES_COUNT = 10;
-    static constexpr uint32_t MAX_ROLLS_IN_GAME = 20;
+    static constexpr uint32_t MAX_ROLLS_IN_GAME = 21;
     std::array<uint32_t, MAX_ROLLS_IN_GAME> pins_{};
     uint32_t roll_count_{};
 public:
@@ -148,3 +148,63 @@ TEST_F(BowlingGameTests, WhenStrike_TwoNextRollsAreDoubled)
 
     ASSERT_EQ(game.score(), 30);
 }
+
+TEST_F(BowlingGameTests, WhenSpareInLastFrame_ExtraRollAllowed)
+{
+    roll_many(1, 18);
+    roll_spare();
+    game.roll(2);
+
+    ASSERT_EQ(game.score(), 30);
+}
+
+
+TEST_F(BowlingGameTests, WhenStrikeInLastFrame_TwoExtraRollsAllowed)
+{
+    roll_many(1, 18);
+    roll_strike();
+    game.roll(2);
+    game.roll(1);
+
+    ASSERT_EQ(game.score(), 31);
+}
+
+struct BowlingGameParams
+{
+    const char* test_description;
+    std::vector<uint32_t> rolls;
+    size_t expected_score;
+};
+
+std::ostream& operator<<(std::ostream& out, const BowlingGameParams& params)
+{
+    out << params.test_description;
+    return out;
+}
+
+struct BowlingGameParamTests : ::testing::TestWithParam<BowlingGameParams>
+{
+    BowlingGame game; // SUT
+};
+
+TEST_P(BowlingGameParamTests, RealGameExamples)
+{
+    const BowlingGameParams param = GetParam();
+
+    for(size_t pins : param.rolls)
+    {
+        game.roll(pins);
+    }
+
+    ASSERT_EQ(game.score(), param.expected_score);
+}
+
+BowlingGameParams params[] = {
+    { "simple game - all rolls one pin", { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, 20 },
+    { "simple game - different rolls", {0, 8, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 27},
+    { "strike & spare", {10, 4, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 47},
+    { "all spares & strike", {1, 9, 1, 9, 1, 9, 1, 9, 1, 9, 1, 9, 1, 9, 1, 9, 1, 9, 1, 9, 10}, 119},
+    { "perfect game", {10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10}, 300}
+};
+
+INSTANTIATE_TEST_SUITE_P(PackOfBowlingTests, BowlingGameParamTests, ::testing::ValuesIn(params));
