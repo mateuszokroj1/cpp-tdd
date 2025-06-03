@@ -4,7 +4,7 @@ message(STATUS "PROJECT_TESTS is: " ${PROJECT_TESTS})
 
 ####################
 # Catch2
-find_package(Catch2 3 REQUIRED)
+find_package(Catch2 3)
 
 if (NOT Catch2_FOUND)
   Include(FetchContent)
