@@ -14,6 +14,7 @@ using namespace std;
 class BowlingGame
 {    
     static constexpr uint32_t MAX_PINS_IN_FRAME = 10;
+    static constexpr uint32_t MAX_FRAMES_COUNT = 10;
     static constexpr uint32_t MAX_ROLLS_IN_GAME = 20;
     std::array<uint32_t, MAX_ROLLS_IN_GAME> pins_{};
     uint32_t roll_count_{};
@@ -27,16 +28,23 @@ public:
     uint32_t score() const
     {        
         uint32_t result = 0;
-
-        const uint32_t frame_size = 2;
-        for(int roll_index = 0; roll_index < MAX_ROLLS_IN_GAME; roll_index += frame_size)
+        
+        for(int frame_index = 0, roll_index = 0; frame_index < MAX_FRAMES_COUNT; ++frame_index)
         {
+            const auto [score_in_frame, frame_size] = frame_score(roll_index);
+            result += score_in_frame;
+
+            if (is_strike(roll_index))
+            {
+                result += strike_bonus(roll_index);                 
+            }
+                        
             if (is_spare(roll_index))
             {
                 result += spare_bonus(roll_index); 
             }
-
-            result += frame_score(roll_index);
+            
+            roll_index += frame_size;
         }
         
         return result;
@@ -47,14 +55,27 @@ private:
         return pins_[roll_index] + pins_[roll_index+1] == MAX_PINS_IN_FRAME;
     }
 
+    bool is_strike(uint32_t roll_index) const
+    {
+        return pins_[roll_index] == MAX_PINS_IN_FRAME;
+    }
+
     uint32_t spare_bonus(uint32_t roll_index) const
     {
         return pins_[roll_index+2];
     }
 
-    uint32_t frame_score(uint32_t roll_index) const
+    uint32_t strike_bonus(uint32_t roll_index) const
     {
-        return pins_[roll_index] + pins_[roll_index+1];
+        return pins_[roll_index+1] + pins_[roll_index+2];
+    }
+
+    std::pair<uint32_t, uint8_t> frame_score(uint32_t roll_index) const
+    {
+        if (is_strike(roll_index))
+            return std::pair{MAX_PINS_IN_FRAME, 1};
+                   
+        return std::pair{pins_[roll_index] + pins_[roll_index+1], 2};
     }
 };
 
@@ -77,6 +98,17 @@ protected:
         {
             game.roll(pins);
         }
+    }
+
+    void roll_spare()
+    {
+        game.roll(5);
+        game.roll(5);
+    }
+
+    void roll_strike()
+    {
+        game.roll(10);
     }
 };
 
@@ -101,11 +133,18 @@ TEST_F(BowlingGameTests, WhenAllRollsWithoutBonus_ScoreIsSumOfRolledPins)
 
 TEST_F(BowlingGameTests, WhenSpare_NextRollIsDoubled)
 {
-    game.roll(5);
-    game.roll(5); // spare
+    roll_spare();
 
     roll_many(1, 18);
 
     ASSERT_EQ(game.score(), 29);
 }
 
+TEST_F(BowlingGameTests, WhenStrike_TwoNextRollsAreDoubled)
+{
+    roll_strike();
+
+    roll_many(1, 18);
+
+    ASSERT_EQ(game.score(), 30);
+}
