@@ -149,7 +149,10 @@ TEST_F(BowlingGameTests, WhenStrike_TwoNextRollsAreDoubled)
     ASSERT_EQ(game.score(), 30);
 }
 
-TEST_F(BowlingGameTests, WhenSpareInLastFrame_ExtraRollAllowed)
+struct LastFrameTests : BowlingGameTests
+{};
+
+TEST_F(LastFrameTests, WhenSpareInLastFrame_ExtraRollAllowed)
 {
     roll_many(1, 18);
     roll_spare();
@@ -159,7 +162,7 @@ TEST_F(BowlingGameTests, WhenSpareInLastFrame_ExtraRollAllowed)
 }
 
 
-TEST_F(BowlingGameTests, WhenStrikeInLastFrame_TwoExtraRollsAllowed)
+TEST_F(LastFrameTests, WhenStrikeInLastFrame_TwoExtraRollsAllowed)
 {
     roll_many(1, 18);
     roll_strike();
@@ -208,3 +211,31 @@ BowlingGameParams params[] = {
 };
 
 INSTANTIATE_TEST_SUITE_P(PackOfBowlingTests, BowlingGameParamTests, ::testing::ValuesIn(params));
+
+
+struct VectorWithItems : ::testing::Test
+{
+    std::vector<std::string> vec;
+
+    void SetUp() override
+    {
+        for (int i = 1; i < 10; ++i)
+            vec.push_back("Item#" + std::to_string(i));
+
+        EXPECT_EQ(vec.size(), 10);
+    }
+};
+
+TEST_F(VectorWithItems, PushBack_SizeIsIncreased)
+{
+    vec.push_back("New item");
+
+    ASSERT_EQ(vec.size(), 11);
+}
+
+TEST_F(VectorWithItems, PushBack_CapacityIsIncreased)
+{
+    vec.push_back("New item");
+
+    ASSERT_GE(vec.capacity(), 11);
+}
