@@ -41,6 +41,11 @@ SCENARIO("pushing items to vector")
             {
                 REQUIRE(vec.size() - prev_size == 1);
             }
+
+            AND_THEN("capacity can be increased")
+            {
+                REQUIRE(vec.capacity() >= 4);
+            }
         }
     }
 }
