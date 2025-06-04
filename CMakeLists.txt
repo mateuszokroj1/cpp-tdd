@@ -42,3 +42,6 @@ add_subdirectory(tdd-katas/catch2/mars-rover-catch)
 add_subdirectory(tdd-katas/gtest/bowling)
 add_subdirectory(tdd-katas/gtest/recently-used-list)
 add_subdirectory(tdd-katas/gtest/mars-rover)
+
+add_subdirectory(legacy-to-testable-catch)
+add_subdirectory(dependency-control)

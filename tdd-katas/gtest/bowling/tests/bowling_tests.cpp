@@ -219,7 +219,7 @@ struct VectorWithItems : ::testing::Test
 
     void SetUp() override
     {
-        for (int i = 1; i < 10; ++i)
+        for (int i = 1; i <= 10; ++i)
             vec.push_back("Item#" + std::to_string(i));
 
         EXPECT_EQ(vec.size(), 10);
