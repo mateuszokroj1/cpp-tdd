@@ -204,7 +204,7 @@ SCENARIO("Rover - command")
 	{
 	  rover.runCommandSequence(command_sequence);
 
-	  THEN("Current coordinate is requested")
+	  THEN("Current coordinate is returned")
 	  {
 		auto result = rover.getPosition();
 
@@ -216,5 +216,19 @@ SCENARIO("Rover - command")
 
 SCENARIO("Rover - unsupported command")
 {
-	
+  auto command = GENERATE(std::string("LLFxM12c 986."), std::string("LLX12 .';FRR"));
+
+	GIVEN("Rover - initialized with start coordinates " << start_coordinates)
+	{
+	  Rover rover(start_coordinates);
+
+		WHEN("Unsupported command sequence is requested: " << command)
+		{
+			THEN("Should throw exception")
+			{
+			  REQUIRE_THROWS_AS(rover.runCommandSequence(command), NotSupportedCommandException);
+			}
+		}
+	}
 }
+

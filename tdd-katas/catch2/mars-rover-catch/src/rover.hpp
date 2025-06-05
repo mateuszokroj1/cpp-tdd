@@ -13,6 +13,12 @@
 
 namespace TDD
 {
+  class NotSupportedCommandException : std::invalid_argument
+  {
+  public:
+	NotSupportedCommandException() : std::invalid_argument("Not supported command") {}
+  };
+
   enum struct Direction : uint8_t
   {
 	N = 0,
@@ -245,7 +251,7 @@ namespace TDD
 		turnRight();
 		break;
 	  default:
-		throw std::invalid_argument("Bad command.");
+		throw NotSupportedCommandException();
 	  }
 	}
 
