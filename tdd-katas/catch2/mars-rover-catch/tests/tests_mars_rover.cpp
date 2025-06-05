@@ -5,215 +5,216 @@
 #include <catch2/generators/catch_generators_all.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
 #include <catch2/trompeloeil.hpp>
-#include <format>
-#include <optional>
-#include <ranges>
-#include <string>
 
 using namespace std;
 using namespace TDD;
 
-// Custom string maker for std::pair to work with Catch2
-namespace Catch
+constexpr Coordinates start_coordinates{ .x = 0, .y = 0, .direction = Direction::N };
+
+SCENARIO("Rover - Init")
 {
-    template <typename T1, typename T2>
-    struct StringMaker<std::pair<T1, T2>>
-    {
-        static std::string convert(const std::pair<T1, T2>& p)
-        {
-            return "(" + Catch::Detail::stringify(p.first) + ", " + Catch::Detail::stringify(p.second) + ")";
-        }
-    };
+  GIVEN("Rover - initialized with start coordinates")
+  {
+	Rover rover(start_coordinates);
+
+	WHEN("Position is requested")
+	{
+	  auto pos = rover.getPosition();
+
+	  THEN("current position is returned")
+	  {
+		REQUIRE(pos == start_coordinates);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Map - wraps coordinates")
+using StartEndPos = std::pair<Coordinates, Coordinates>;
+
+SCENARIO("Rover - moving forward")
 {
-    Map map{10, 20};
+  auto [start_coords, expected_coords] = GENERATE(
+	StartEndPos{ Coordinates{.x = 5, .y = 5, .direction = Direction::N}, Coordinates{.x = 5, .y = 6, .direction = Direction::N} },
+	StartEndPos{ Coordinates{.x = 4, .y = -10, .direction = Direction::E}, Coordinates{.x = 5, .y = -10, .direction = Direction::E} },
+	StartEndPos{ Coordinates{.x = -5, .y = 10, .direction = Direction::S}, Coordinates{.x = -5, .y = 9, .direction = Direction::S} },
+	StartEndPos{ Coordinates{.x = -10, .y = 2, .direction = Direction::W}, Coordinates{.x = -11, .y = 2, .direction = Direction::W} });
 
-    auto [start, expected] = GENERATE(
-        std::pair{std::pair{10, 20}, std::pair{0, 0}},
-        std::pair{std::pair{15, 25}, std::pair{5, 5}},
-        std::pair{std::pair{-1, -1}, std::pair{9, 19}});
+  GIVEN("Rover - initialized with position " << start_coords)
+  {
+	Rover rover(start_coords);
 
-    auto [x, y] = start;
+	WHEN("Moved forward")
+	{
+	  rover.moveForward();
 
-    auto result = map.wrap(x, y);
-    REQUIRE(result == expected);
+	  THEN("Current position changed to " << expected_coords)
+	  {
+		REQUIRE(rover.getPosition() == expected_coords);
+	  }
+	}
+  }
 }
 
-CATCH_REGISTER_ENUM(Direction, Direction::North, Direction::South, Direction::East, Direction::West);
-
-TEST_CASE("Rover initialized with coord and direction")
+SCENARIO("Rover - moving backward")
 {
-    Rover rover(5, 5, Direction::North);
+  auto [start_coords, expected_coords] = GENERATE(
+	StartEndPos{ Coordinates{.x = 5, .y = 5, .direction = Direction::N}, Coordinates{.x = 5, .y = 4, .direction = Direction::N} },
+	StartEndPos{ Coordinates{.x = 4, .y = -10, .direction = Direction::E}, Coordinates{.x = 3, .y = -10, .direction = Direction::E} },
+	StartEndPos{ Coordinates{.x = -5, .y = 10, .direction = Direction::S}, Coordinates{.x = -5, .y = 11, .direction = Direction::S} },
+	StartEndPos{ Coordinates{.x = -10, .y = 2, .direction = Direction::W}, Coordinates{.x = -9, .y = 2, .direction = Direction::W} });
 
-    SECTION("reports current postion")
-    {
-        REQUIRE(rover.get_position() == Position{5, 5, Direction::North});
-    }
+  GIVEN("Rover - initialized with position " << start_coords)
+  {
+	Rover rover(start_coords);
+
+	WHEN("Moved backward")
+	{
+	  rover.moveBackward();
+
+	  THEN("Current position changed to " << expected_coords)
+	  {
+		REQUIRE(rover.getPosition() == expected_coords);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Rover - move forward")
+using DirectionPair = std::pair<Direction, Direction>;
+SCENARIO("Rover - turn right")
 {
-    auto [start_direction, expected_pos] = GENERATE(
-        std::pair{Direction::North, Position{5, 6, Direction::North}},
-        std::pair{Direction::South, Position{5, 4, Direction::South}},
-        std::pair{Direction::East, Position{6, 5, Direction::East}},
-        std::pair{Direction::West, Position{4, 5, Direction::West}});
+  auto [start_dir, expected_dir] = GENERATE(
+	DirectionPair{ Direction::N, Direction::E },
+	DirectionPair{ Direction::E, Direction::S },
+	DirectionPair{ Direction::S, Direction::W },
+	DirectionPair{ Direction::W, Direction::N });
 
-    DYNAMIC_SECTION("Rover moves forward from " << start_direction)
-    {
-        Rover rover(5, 5, start_direction);
+  Coordinates start_coords;
+  start_coords.direction = start_dir;
 
-        rover.move_forward();
+  GIVEN("Rover - initialized with position " << start_coords)
+  {
+	Rover rover(start_coords);
 
-        DYNAMIC_SECTION("Ends on position " << expected_pos)
-        {
-            REQUIRE(rover.get_position() == expected_pos);
-        }
-    }
+	WHEN("Turn Right")
+	{
+	  rover.turnRight();
+
+	  Coordinates expected_coords;
+	  expected_coords.direction = expected_dir;
+
+	  THEN("Current direction changed to " << expected_coords)
+	  {
+		REQUIRE(rover.getPosition() == expected_coords);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Rover - move backward")
+SCENARIO("Rover - turn left")
 {
-    auto [start_direction, expected_pos] = GENERATE(
-        std::pair{Direction::North, Position{5, 4, Direction::North}},
-        std::pair{Direction::South, Position{5, 6, Direction::South}},
-        std::pair{Direction::East, Position{4, 5, Direction::East}},
-        std::pair{Direction::West, Position{6, 5, Direction::West}});
+  auto [start_dir, expected_dir] = GENERATE(
+	DirectionPair{ Direction::N, Direction::W },
+	DirectionPair{ Direction::E, Direction::N },
+	DirectionPair{ Direction::S, Direction::E },
+	DirectionPair{ Direction::W, Direction::S });
 
-    DYNAMIC_SECTION("Rover moves forward from " << start_direction)
-    {
-        Rover rover(5, 5, start_direction);
+  Coordinates start_coords;
+  start_coords.direction = start_dir;
 
-        rover.move_backward();
+  GIVEN("Rover - initialized with position " << start_coords)
+  {
+	Rover rover(start_coords);
 
-        DYNAMIC_SECTION("Ends on position " << expected_pos)
-        {
-            REQUIRE(rover.get_position() == expected_pos);
-        }
-    }
+	WHEN("Turn Left")
+	{
+	  rover.turnLeft();
+
+	  Coordinates expected_coords;
+	  expected_coords.direction = expected_dir;
+
+	  THEN("Current direction changed to " << expected_coords)
+	  {
+		REQUIRE(rover.getPosition() == expected_coords);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Rover - turn left")
+const Limited2dPlane planet_limit{ .x_min = -100, .y_min = -100, .x_max = 100, .y_max = 100 };
+
+SCENARIO("Rover - when drives to planet coordinates limit - move forward")
 {
-    auto [start_direction, expected_direction] = GENERATE(
-        std::pair{Direction::North, Direction::West},
-        std::pair{Direction::South, Direction::East},
-        std::pair{Direction::East, Direction::North},
-        std::pair{Direction::West, Direction::South});
+  auto [start_coords, expected_coords] = GENERATE(
+	StartEndPos{ Coordinates{.x = 1, .y = 100, .direction = Direction::N}, Coordinates{.x = 1, .y = -100, .direction = Direction::N} },
+	StartEndPos{ Coordinates{.x = 100, .y = -100, .direction = Direction::E}, Coordinates{.x = -100, .y = -100, .direction = Direction::E} },
+	StartEndPos{ Coordinates{.x = -100, .y = -100, .direction = Direction::S}, Coordinates{.x = -100, .y = 100, .direction = Direction::S} },
+	StartEndPos{ Coordinates{.x = -100, .y = 2, .direction = Direction::W}, Coordinates{.x = 100, .y = 2, .direction = Direction::W} });
 
-    DYNAMIC_SECTION("Rover turns left from " << start_direction)
-    {
-        Rover rover(5, 5, start_direction);
+  GIVEN("Rover - initialized with position " << start_coords)
+  {
+	Rover rover(start_coords, planet_limit);
 
-        rover.turn_left();
+	WHEN("Moved forward")
+	{
+	  rover.moveForward();
 
-        DYNAMIC_SECTION("Ends facing " << expected_direction)
-        {
-            REQUIRE(rover.get_position().direction == expected_direction);
-        }
-    }
+	  THEN("Current position changed to " << expected_coords)
+	  {
+		REQUIRE(rover.getPosition() == expected_coords);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Rover - turn right")
+SCENARIO("Rover - when drives to planet coordinates limit - move backward")
 {
-    auto [start_direction, expected_direction] = GENERATE(
-        std::pair{Direction::North, Direction::East},
-        std::pair{Direction::South, Direction::West},
-        std::pair{Direction::East, Direction::South},
-        std::pair{Direction::West, Direction::North});
+  auto [start_coords, expected_coords] = GENERATE(
+	StartEndPos{ Coordinates{.x = 1, .y = -100, .direction = Direction::N}, Coordinates{.x = 1, .y = 100, .direction = Direction::N} },
+	StartEndPos{ Coordinates{.x = -100, .y = -100, .direction = Direction::E}, Coordinates{.x = 100, .y = -100, .direction = Direction::E} },
+	StartEndPos{ Coordinates{.x = -100, .y = 100, .direction = Direction::S}, Coordinates{.x = -100, .y = -100, .direction = Direction::S} },
+	StartEndPos{ Coordinates{.x = 100, .y = 2, .direction = Direction::W}, Coordinates{.x = -100, .y = 2, .direction = Direction::W} });
 
-    DYNAMIC_SECTION("Rover turns right from " << start_direction)
-    {
-        Rover rover(5, 5, start_direction);
+  GIVEN("Rover - initialized with position " << start_coords)
+  {
+	Rover rover(start_coords, planet_limit);
 
-        rover.turn_right();
+	WHEN("Moved backward")
+	{
+	  rover.moveBackward();
 
-        DYNAMIC_SECTION("Ends facing " << expected_direction)
-        {
-            REQUIRE(rover.get_position().direction == expected_direction);
-        }
-    }
+	  THEN("Current position changed to " << expected_coords)
+	  {
+		REQUIRE(rover.getPosition() == expected_coords);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Rover - executes list of commands")
+using CommandAndCoords = std::pair<std::string, Coordinates>;
+
+SCENARIO("Rover - command")
 {
-    Rover rover(5, 5, Direction::East);
+  auto [command_sequence, expected_coords] = GENERATE(CommandAndCoords{ "LLFFBBRR" , start_coordinates }, CommandAndCoords{ "FFFFFL" , {.x = 0, .y = 5, .direction = Direction::W } });
 
-    SECTION("Uppercase set of commands")
-    {
-        rover.execute("FFLBR");
+  GIVEN("Rover - initialized with start coordinates " << start_coordinates)
+  {
+	Rover rover(start_coordinates);
 
-        REQUIRE(rover.get_position() == Position(7, 4, Direction::East));
-    }
+	WHEN("Command sequence is requested: " << command_sequence)
+	{
+	  rover.runCommandSequence(command_sequence);
 
-    SECTION("set of commands - case insensitive")
-    {
-        rover.execute("FfLBr");
+	  THEN("Current coordinate is requested")
+	  {
+		auto result = rover.getPosition();
 
-        REQUIRE(rover.get_position() == Position(7, 4, Direction::East));
-    }
-
-    SECTION("Unknown command")
-    {
-        SECTION("throws exception")
-        {
-            REQUIRE_THROWS_AS(rover.execute("FFxFFF"), UnknownCommandException);
-        }
-
-        SECTION("rover stops and reports position")
-        {
-            try
-            {
-                rover.execute("FFxFFF");
-            }
-            catch (...)
-            {
-            }
-
-            REQUIRE(rover.get_position() == Position(7, 5, Direction::East));
-        }
-    }
+		REQUIRE(result == expected_coords);
+	  }
+	}
+  }
 }
 
-TEST_CASE("Rover - wrapping coordinates")
+SCENARIO("Rover - unsupported command")
 {
-    Map mars_map{10, 10};
-
-    SECTION("Rover wraps coordinates when moving north")
-    {
-        Rover rover(5, 9, Direction::North, mars_map);
-
-        rover.move_forward();
-
-        REQUIRE(rover.get_position() == Position(5, 0, Direction::North));
-    }
-
-    SECTION("Rover wraps coordinates when moving south")
-    {
-        Rover rover(5, 0, Direction::South, mars_map);
-
-        rover.move_forward();
-
-        REQUIRE(rover.get_position() == Position(5, 9, Direction::South));
-    }
-
-    SECTION("Rover wraps coordinates when moving east")
-    {
-        Rover rover(9, 5, Direction::East, mars_map);
-
-        rover.move_forward();
-
-        REQUIRE(rover.get_position() == Position(0, 5, Direction::East));
-    }
-
-    SECTION("Rover wraps coordinates when moving west")
-    {
-        Rover rover(5, 9, Direction::North, mars_map);
-
-        rover.move_forward();
-
-        REQUIRE(rover.get_position() == Position(5, 0, Direction::North));
-    }
+	
 }

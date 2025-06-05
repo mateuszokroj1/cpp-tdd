@@ -29,7 +29,6 @@ find_package(Threads REQUIRED)
 
 ####################
 # Main app
-# include_directories(src)
 add_executable(${PROJECT_MAIN} main.cpp)
 target_link_libraries(${PROJECT_MAIN} PRIVATE ${PROJECT_LIB} ${CMAKE_THREAD_LIBS_INIT})
 target_compile_features(${PROJECT_MAIN} PUBLIC cxx_std_20)

@@ -6,206 +6,253 @@
 #include <cassert>
 #include <iostream>
 #include <limits>
-#include <memory>
 #include <ranges>
 #include <string>
 #include <vector>
-#include <format>
-#include <optional>
+#include <memory>
 
 namespace TDD
 {
-    enum class Direction
-    {
-        North,
-        East,
-        South,
-        West
-    };
+  enum struct Direction : uint8_t
+  {
+	N = 0,
+	E,
+	S,
+	W
+  };
 
-    std::ostream& operator<<(std::ostream& os, Direction direction)
-    {
-        switch (direction)
-        {
-        case Direction::North:
-            os << "North";
-            break;
-        case Direction::South:
-            os << "South";
-            break;
-        case Direction::East:
-            os << "East";
-            break;
-        case Direction::West:
-            os << "West";
-            break;
-        }
-        return os;
-    }
+  inline std::ostream& operator<<(std::ostream& stream, const Direction& direction)
+  {
+	switch (direction)
+	{
+	case Direction::N:
+	  stream << "N";
+	  break;
+	case Direction::E:
+	  stream << "E";
+	  break;
+	case Direction::W:
+	  stream << "W";
+	  break;
+	case Direction::S:
+	  stream << "S";
+	  break;
+	}
 
-    struct Position
-    {
-        int x, y;
-        Direction direction;
+	return stream;
+  }
 
-        bool operator==(const Position& other) const = default;
-    };
+  struct Coordinates
+  {
+	double x, y;
+	Direction direction;
 
-    std::ostream& operator<<(std::ostream& os, const Position& pos)
-    {
-        return os << "Position(" << pos.x << ", " << pos.y << ", " << pos.direction << ")";
-    }
+	bool operator==(const Coordinates& other) const = default;
+  };
 
-    class UnknownCommandException : public std::runtime_error
-    {
-    public:
-        explicit UnknownCommandException(const std::string& message)
-            : std::runtime_error(message)
-        {
-        }
-    };
+  inline std::ostream& operator<<(std::ostream& stream, const Coordinates& coords)
+  {
+	stream << "{x = " << coords.x << ", y = " << coords.y << ", dir = " << coords.direction;
 
-    class Map
-    {
-        size_t max_width_;
-        size_t max_height_;
+	return stream;
+  }
 
-    public:
-        Map(size_t w, size_t h)
-            : max_width_{w}
-            , max_height_{h}
-        {
-        }
+  struct Limited2dPlane
+  {
+	double x_min = NAN;
+	double y_min = NAN;
+	double x_max = NAN;
+	double y_max = NAN;
 
-        std::pair<size_t, size_t> wrap(int x, int y)
-        {
-            size_t wrapped_x = (x + max_width_) % max_width_;
-            size_t wrapped_y = (y + max_height_) % max_height_;
-            auto f = std::format("({}, {})", wrapped_x, wrapped_y);
-            return {wrapped_x, wrapped_y};
-        }
-    };
+	[[nodiscard]] bool isUnlimited() const
+	{
+	  return std::isnan(x_min) && std::isnan(y_min) && std::isnan(x_max) && std::isnan(y_max);
+	}
 
-    class Rover
-    {
-        Position position_;
-        std::optional<Map> map_;
+	bool operator==(const Limited2dPlane&) const = default;
+  };
 
-    public:
-        Rover(int x, int y, Direction direction, std::optional<Map> map = std::nullopt)
-            : position_{x, y, direction}
-            , map_{map}
-        {
-        }
+  inline std::ostream& operator<<(std::ostream& stream, const Limited2dPlane& plane)
+  {
+	stream << "{ min(" << plane.x_min << ", " << plane.y_min << "), max(" << plane.x_max << ", " << plane.y_max << ") }";
 
-        Position get_position() const
-        {
-            return position_;
-        }
+	return stream;
+  }
 
-        void move_forward()
-        {
-            switch (position_.direction)
-            {
-            case Direction::North:
-                position_.y += 1;
-                break;
-            case Direction::South:
-                position_.y -= 1;
-                break;
-            case Direction::East:
-                position_.x += 1;
-                break;
-            case Direction::West:
-                position_.x -= 1;
-                break;
-            }
+  class Rover
+  {
+  public:
+	Rover(const Coordinates& initial_coordinates, const Limited2dPlane& planet_limit = {}) : current_coordinates(initial_coordinates), planet_limit(planet_limit) {}
 
-            wrap_coordinates();
-        }
+	Coordinates getPosition() const
+	{
+	  return current_coordinates;
+	}
 
-        void move_backward()
-        {
-            switch (position_.direction)
-            {
-            case Direction::North:
-                position_.y -= 1;
-                break;
-            case Direction::South:
-                position_.y += 1;
-                break;
-            case Direction::East:
-                position_.x -= 1;
-                break;
-            case Direction::West:
-                position_.x += 1;
-                break;
-            }
+	void moveForward()
+	{
+	  switch (current_coordinates.direction)
+	  {
+	  case Direction::N:
+		++current_coordinates.y;
 
-            wrap_coordinates();
-        }
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.y > planet_limit.y_max)
+			current_coordinates.y = planet_limit.y_min;
+		}
 
-        void turn_left()
-        {
-            position_.direction = turn(position_.direction, TurnDirection::Left);
-        }
+		break;
+	  case Direction::E:
+		++current_coordinates.x;
 
-        void turn_right()
-        {
-            position_.direction = turn(position_.direction, TurnDirection::Right);
-        }
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.x > planet_limit.x_max)
+			current_coordinates.x = planet_limit.x_min;
+		}
 
-        void execute(const std::string& commands)
-        {
-            for (char cmd : commands)
-            {
-                switch (std::toupper(cmd))
-                {
-                case 'L':
-                    turn_left();
-                    break;
-                case 'R':
-                    turn_right();
-                    break;
-                case 'F':
-                    move_forward();
-                    break;
-                case 'B':
-                    move_backward();
-                    break;
-                default:
-                    throw UnknownCommandException(std::string("Unknown command: ") + cmd);
-                }
-            }
-        }
+		break;
+	  case Direction::S:
+		--current_coordinates.y;
 
-    private:
-        void wrap_coordinates()
-        {
-            if (map_)
-            {
-                auto [wrapped_x, wrapped_y] = map_->wrap(position_.x, position_.y);
-                position_.x = wrapped_x;
-                position_.y = wrapped_y;
-            }
-        }
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.y < planet_limit.y_min)
+			current_coordinates.y = planet_limit.y_max;
+		}
 
-        inline constexpr static std::array directions_{
-            Direction::North, Direction::East, Direction::South, Direction::West
-        };
+		break;
+	  case Direction::W:
+		--current_coordinates.x;
 
-        enum class TurnDirection : int8_t
-        {
-            Left = -1,
-            Right = 1
-        };
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.x < planet_limit.x_min)
+			current_coordinates.x = planet_limit.x_max;
+		}
 
-        static Direction turn(Direction current_direction, TurnDirection turn_direction)
-        {
-            auto index = std::to_underlying(current_direction) + std::to_underlying(turn_direction);
-            return directions_[index % std::size(directions_)];
-        }
-    };
+		break;
+	  }
+	}
+
+	void moveBackward()
+	{
+	  switch (current_coordinates.direction)
+	  {
+	  case Direction::N:
+		--current_coordinates.y;
+
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.y < planet_limit.y_min)
+			current_coordinates.y = planet_limit.y_max;
+		}
+
+		break;
+	  case Direction::E:
+		--current_coordinates.x;
+
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.x < planet_limit.x_min)
+			current_coordinates.x = planet_limit.x_max;
+		}
+
+		break;
+	  case Direction::S:
+		++current_coordinates.y;
+
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.y > planet_limit.y_max)
+			current_coordinates.y = planet_limit.y_min;
+		}
+
+		break;
+	  case Direction::W:
+		++current_coordinates.x;
+
+		if (!planet_limit.isUnlimited())
+		{
+		  if (current_coordinates.x > planet_limit.x_max)
+			current_coordinates.x = planet_limit.x_min;
+		}
+
+		break;
+	  }
+	}
+
+	void turnRight()
+	{
+	  switch (current_coordinates.direction)
+	  {
+	  case Direction::N:
+		current_coordinates.direction = Direction::E;
+		break;
+	  case Direction::E:
+		current_coordinates.direction = Direction::S;
+		break;
+	  case Direction::S:
+		current_coordinates.direction = Direction::W;
+		break;
+	  case Direction::W:
+		current_coordinates.direction = Direction::N;
+		break;
+	  }
+	}
+
+	void turnLeft()
+	{
+	  switch (current_coordinates.direction)
+	  {
+	  case Direction::N:
+		current_coordinates.direction = Direction::W;
+		break;
+	  case Direction::E:
+		current_coordinates.direction = Direction::N;
+		break;
+	  case Direction::S:
+		current_coordinates.direction = Direction::E;
+		break;
+	  case Direction::W:
+		current_coordinates.direction = Direction::S;
+		break;
+	  }
+	}
+
+	void runCommandSequence(const std::string& sequence)
+	{
+	  for (char command : sequence)
+	  {
+		runCommand(command);
+	  }
+	}
+
+	void runCommand(char command)
+	{
+	  switch (command) {
+	  case 'F':
+		moveForward();
+		break;
+	  case 'B':
+		moveBackward();
+		break;
+	  case 'L':
+		turnLeft();
+		break;
+	  case 'R':
+		turnRight();
+		break;
+	  default:
+		throw std::invalid_argument("Bad command.");
+	  }
+	}
+
+  private:
+	Coordinates current_coordinates;
+	Limited2dPlane planet_limit;
+  };
 }
 
 #endif
